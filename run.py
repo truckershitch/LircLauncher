@@ -152,7 +152,7 @@ while True:
 		if x[0]=="go":
 			proc=subprocess.Popen(apps_complete[current]["exec"])
 			#break
-		if x[0]=="die"
+		if x[0]=="die":
 			break
 		if current < 0:
 			current=0
