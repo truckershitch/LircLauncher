@@ -47,7 +47,7 @@ for line in settingsLines:
 pygame.init()
 
 
-screen = pygame.display.set_mode((0,0),pygame.HWSURFACE|pygame.FULLSCREEN)
+screen = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
 infoObject = pygame.display.Info()
 
 pygame.mouse.set_visible(False)
@@ -141,6 +141,7 @@ def draw(highlight):
 current=1
 draw(current)
 proc=subprocess.Popen(["sleep","0"])
+cfull=True
 while True:
 	pygame.event.pump()
 	x=lirc.nextcode()
@@ -150,6 +151,8 @@ while True:
 		if x[0]=="right":
 			current=current+1
 		if x[0]=="go":
+			pygame.display.toggle_fullscreen()
+			cfull=False
 			proc=subprocess.Popen(apps_complete[current]["exec"])
 			#break
 		if x[0]=="die":
@@ -159,6 +162,8 @@ while True:
 		if current > len(apps_complete)-1:
 			current=len(apps_complete)-1
 		draw(current)
-
+	if proc.poll() != None and cfull==False:
+		pygame.display.toggle_fullscreen()
+		cfull=True
 lirc.deinit()
 sys.exit()
