@@ -19,7 +19,7 @@ import lirc
 
 
 #Start lirc listener
-lirc.init("lirclauncher","/home/alex/.config/lircrc")
+lirc.init("lirclauncher","./lircrc")
 
 
 def pilToPygame(img):
