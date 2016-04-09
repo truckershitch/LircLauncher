@@ -1,0 +1,19 @@
+begin
+            remote = Sony_RMT-D173A
+            button = KEY_ENTER
+            prog   = lirclauncher
+            config = one
+end
+
+begin
+            remote = Sony_RMT-D173A
+            button = KEY_LEFT
+            prog   = lirclauncher
+            config = left
+end
+begin
+            remote = Sony_RMT-D173A
+            button = KEY_RIGHT
+            prog   = lirclauncher
+            config = right
+end
