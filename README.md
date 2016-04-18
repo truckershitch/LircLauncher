@@ -7,8 +7,5 @@ Installation
 
 - `git clone https://github.com/magmastonealex/LircLauncher`
 - Edit the settings.config file. Each line contains either the name of an application's .desktop file (without the extension), or something of the form Custom:Name:Exec Path:IconPath. Custom remains constant, but Name, Exec Path, and IconPath can be whatever fits your use case. A Chrome launcher script that also runs irexec & irxevent is included, and might be helpful for Netflix use.
-- Edit your .lircrc to set up the buttons that the app uses: TODO: include stuff needed to do this.
-
-
-TODO: describe how to launch with, eg. openbox
+- Edit lircrc to set up the buttons that the app uses. The example includes all useful commands.
 
