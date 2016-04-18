@@ -41,7 +41,7 @@ for line in settingsLines:
 		apps.append(line.replace("\n",""))
 	else:
 		customStuff=line.split(":")
-		apps_complete.append({"icon":customStuff[3].replace("\n",""),"exec":customStuff[2],"name":customStuff[1]})
+		apps_complete.append({"icon":customStuff[3].replace("\n",""),"exec":customStuff[2].split(" "),"name":customStuff[1]})
 
 
 pygame.init()
