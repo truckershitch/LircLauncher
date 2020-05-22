@@ -1,19 +1,36 @@
 begin
-            remote = Sony_RMT-D173A
-            button = KEY_ENTER
-            prog   = lirclauncher
-            config = one
-end
-
-begin
-            remote = Sony_RMT-D173A
+            remote = devinput-32
             button = KEY_LEFT
             prog   = lirclauncher
-            config = left
+            config = Left
 end
 begin
-            remote = Sony_RMT-D173A
+            remote = devinput-32
             button = KEY_RIGHT
             prog   = lirclauncher
-            config = right
+            config = Right
+end
+begin
+            remote = devinput-32
+            button = KEY_OK
+            prog   = lirclauncher
+            config = Return
+end
+begin
+            remote = devinput-32
+            button = KEY_AUDIO
+            prog   = lirclauncher
+            config = kodi
+end
+begin
+            remote = devinput-32
+            button = KEY_VIDEO
+            prog   = lirclauncher
+            config = pmp
+end
+begin
+            remote = devinput-32
+            button = KEY_DVD
+            prog = lirclauncher
+            config = torrent
 end
