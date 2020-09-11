@@ -11,8 +11,7 @@ from gi.repository import Gtk
 #import re
 import lirc
 import os
-
-WAIT_TICKS = 20000
+from time import sleep
 
 #Rough theory of operation:
 #Process apps, get icons
@@ -53,7 +52,7 @@ for line in settingsLines:
                               "name": customStuff[1]})
 
 pygame.init()
-
+pygame.display.set_caption("LircLauncher")
 
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 infoObject = pygame.display.Info()
@@ -155,7 +154,6 @@ current = 0
 draw(current)
 proc=subprocess.Popen(["sleep", "0"])
 cfull = True
-ticker = 0
 
 while True:
     def get_index(name):
@@ -184,32 +182,28 @@ while True:
                     pygame.FULLSCREEN)
 
     def move_current(dir):
-        global current, ticker
+        global current
 
         if dir == 'left':
             current = max(0, current - 1)
         elif dir == 'right':
             current = min(len(apps_complete) - 1, current + 1)
 
-        ticker = WAIT_TICKS
         draw(current)
         os.system('DISPLAY=:0 /usr/bin/xscreensaver-command -deactivate')
 
     pygame.event.pump()
 
-    if ticker > 0:
-        ticker -= 1
-    
-    keyDown = pygame.key.get_pressed()
-    if ticker == 0:
-        if keyDown[pygame.K_LEFT]:
-            move_current('left')
-        if keyDown[pygame.K_RIGHT]:
-            move_current('right')
-        if keyDown[pygame.K_RETURN]:
-            # App has been selected by arrows and Return keys
-            ticker = WAIT_TICKS
-            call_by_index(current)
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                move_current('left')
+            if event.key == pygame.K_RIGHT:
+                move_current('right')
+            if event.key == pygame.K_RETURN:
+                # App has been selected
+                call_by_index(current)
 
     x = lirc.nextcode()
 
@@ -243,6 +237,8 @@ while True:
     if proc.poll() != None and cfull == False:
         pygame.display.flip()
         cfull = True
+
+    sleep(0.1)
 
 lirc.deinit()
 sys.exit()
