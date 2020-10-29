@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 
-import pygame
-import pygame.gfxdraw
 import subprocess
 import sys
-from PIL import Image, ImageFilter, ImageChops
 import math
-import gi
-from gi.repository import Gtk
-#import re
-import lirc
-import os
 from time import sleep
+from PIL import Image, ImageFilter
+from gi.repository import Gtk
+
+import pygame
+import pygame.gfxdraw
+import lirc
+
+WINDOW_NAME = 'lirclauncher'
 
 #Rough theory of operation:
-#Process apps, get icons
+#Process APPS, get icons
 #Take background, Gauss. Blur it, add some white to make it stand out
 #Put original background on screen
 #Take chunks of blurred background as backdrops for icons
-#Allow user to select app with LIRC.
+#Allow user to select app with LIRC or keyboard with arrow and ENTER keys
 
 #Start lirc listener
-lirc_sock = lirc.init("lirclauncher", "./lircrc", blocking=False)
+lirc_sock = lirc.init(WINDOW_NAME, "./lircrc", blocking=False)
 
 def pilToPygame(img):
     mode = img.mode
@@ -32,29 +32,36 @@ def pilToPygame(img):
 #this is used to get icons.
 icon_theme = Gtk.IconTheme.get_default()
 
-#Import our list of apps.
+#Import our list of APPS.
 #Format of settings.config:
-#Custom:NameOfApplication:ApplicationCommandLine:IconPath
+#Custom:Name_Of_Application:Application_Command_Line:Icon_Path
+# OR #
+#Custom:Name_Of_Application:Application_Command_Line:Icon_Path:lircrc_Button_Code
 #eg:
 #Custom:Exit:pkill -1 -f run.py:./exit.png
-apps_complete = []
-apps = []
+APPS_COMPLETE = []
+APPS = []
+LIRCRC_APPS = {}
 settingsFile = open("settings.config")
 settingsLines = settingsFile.readlines()
-for line in settingsLines:
+for i, line in enumerate(settingsLines):
     line = line.rstrip()
     if line.find("Custom") == -1:
-        apps.append(line)
+        APPS.append(line)
     else:
         customStuff = line.split(":")
-        apps_complete.append({"icon": customStuff[3],
+        APPS_COMPLETE.append({"icon": customStuff[3],
                               "exec": customStuff[2].split(" "),
                               "name": customStuff[1]})
+        if len(customStuff) == 5: # has lircrc button field
+            LIRCRC_APPS[customStuff[4]] = i
 
 pygame.init()
-pygame.display.set_caption("LircLauncher")
+pygame.display.set_caption(WINDOW_NAME)
+WINDOW_ID = subprocess.check_output('DISPLAY=:0 xdotool search --name %s' %
+        WINDOW_NAME, shell=True).decode('utf-8').rstrip()
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 
-screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 infoObject = pygame.display.Info()
 
 pygame.mouse.set_visible(False)
@@ -84,10 +91,10 @@ z = z.filter(ImageFilter.GaussianBlur(radius = 10))
 
 
 #This length is a little weird.
-#We currently have processed custom apps and unprocessed .desktop names in two different arrays
+#We currently have processed custom APPS and unprocessed .desktop names in two different arrays
 # which are about to be combined.
 intvl = int(math.floor(infoObject.current_w /
-            ((len(apps) + len(apps_complete)) * 2 + 1)))
+            ((len(APPS) + len(APPS_COMPLETE)) * 2 + 1)))
 
 
 #middle of the screen
@@ -95,7 +102,7 @@ middleT = int(math.floor(infoObject.current_h / 2)) - int(float(intvl) / float(2
 
 
 #We're parsing .desktop files to get icon, name (currently unused), and executable path.
-for app in apps:
+for app in APPS:
     f = open("/usr/share/applications/" + app + ".desktop")
     lns = f.readlines()
     name = ""
@@ -109,15 +116,15 @@ for app in apps:
             #exePath = re.sub(r'%.', '', x.split("=")[1]).replace("\n", "").split(" ")
             exePath = (' '.join(list(filter(lambda i: not i.startswith('%'),
                                             x.split('=')[1].split(' ')))))
-        if x.find("Icon") != -1 and iconPath == None:
+        if x.find("Icon") != -1 and iconPath is None:
             iconPath = x.split("=")[1]
             iconPath = iconPath.replace(" ", "")
             if iconPath.find("/") == -1:
                 iconPath = icon_theme.lookup_icon(iconPath, 1024, 0).get_filename()
-    apps_complete.append({"icon": iconPath, "name": name, "exec": exePath})
+    APPS_COMPLETE.append({"icon": iconPath, "name": name, "exec": exePath})
 
 #Process & scale icons once.
-for app in apps_complete:
+for app in APPS_COMPLETE:
     icon = Image.open(app["icon"])
     width,height = icon.size
     ratio = min(float(intvl - 50) / float(width), float((intvl - 50)) / float(height))
@@ -127,22 +134,22 @@ for app in apps_complete:
 
 
 #These are the list of icon backdrops, cropped properly.
-imgs=[]
-for i in range(len(apps_complete)):
+imgs = []
+for i in range(len(APPS_COMPLETE)):
     imgs.append(pilToPygame(z.crop((intvl * ((2 * i) + 1), middleT,
                                     intvl * ((2 * i) + 1) + intvl,
                                     middleT + intvl))))
 
 #Draw everything!
 def draw(highlight):
-    global apps_complete, intvl, middleT, backdrop, apps
-    
+    global APPS_COMPLETE, intvl, middleT, backdrop, APPS
+
     screen.blit(backdrop, (0,0))
 
-    for i in range(len(apps_complete)):
+    for i in range(len(APPS_COMPLETE)):
         screen.blit(imgs[i], (intvl * ((2 * i) + 1), middleT))
     #Scale and draw app icons
-    for i, app in enumerate(apps_complete):
+    for i, app in enumerate(APPS_COMPLETE):
         screen.blit(app["icon"], (intvl * ((2 * i) + 1) + 25, middleT + 25))
 
     pygame.draw.rect(screen, (0, 0, 128), (intvl * ((2 * highlight) + 1),
@@ -150,95 +157,86 @@ def draw(highlight):
     pygame.display.flip()
 
 
-current = 0
+current = 0 # index of selected icon/program
 draw(current)
-proc=subprocess.Popen(["sleep", "0"])
-cfull = True
+menu_proc = subprocess.Popen(['sleep', '0']) # subprocess id of chosen menu item (pmp, kodi, etc)
+watch_proc = subprocess.Popen(['sleep', '0']) # subprocess id of xscreensaver watcher
 
 while True:
-    def get_index(name):
-        global current
+    def get_focused():
+        subprocess.call('xdotool windowfocus %s' % WINDOW_ID, shell=True)
+        start_watcher()
 
-        for index, app in enumerate(apps_complete):
-            if app["name"] == name:
-                current = index
-                return index
+    def start_watcher():
+        global watch_proc
+
+        watch_proc = subprocess.Popen(['./xscreensaver-watcher.pl'])
 
     def call_by_index(index):
-        global proc, cfull
+        global menu_proc
 
-        cfull = False
         draw(current)
-        
-        import os
-        exec_name = apps_complete[index]["exec"]
+
+        exec_name = APPS_COMPLETE[index]['name']
+        exec_cmd = APPS_COMPLETE[index]['exec']
         print('Opening %s' % exec_name)
-        proc = subprocess.Popen(exec_name)
+        if exec_name == 'Exit':
+            exit_menu()
+        menu_proc = subprocess.Popen(exec_cmd)
 
-        # if external program is called, LircLauncher will be windowed (not fullscreen)
-        if not pygame.mouse.get_focused():
-            screen = pygame.display.set_mode(
-                    (infoObject.current_w, infoObject.current_h),
-                    pygame.FULLSCREEN)
-
-    def move_current(dir):
+    def move_current(direction):
         global current
 
-        if dir == 'left':
+        if direction == 'left':
             current = max(0, current - 1)
-        elif dir == 'right':
-            current = min(len(apps_complete) - 1, current + 1)
+        elif direction == 'right':
+            current = min(len(APPS_COMPLETE) - 1, current + 1)
 
         draw(current)
-        os.system('DISPLAY=:0 /usr/bin/xscreensaver-command -deactivate')
+        subprocess.call('xscreensaver-command -deactivate', shell=True)
 
-    pygame.event.pump()
+    def exit_menu():
+        lirc.deinit()
+        watch_proc.terminate()
+        sys.exit()
 
-    events = pygame.event.get()
-    for event in events:
-        if event.type == pygame.KEYDOWN:
+    if watch_proc.poll() is not None:
+        # xscreensaver 'unblanked' or first trip through loop
+        get_focused()
+
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN: # key pressed
             if event.key == pygame.K_LEFT:
                 move_current('left')
             if event.key == pygame.K_RIGHT:
                 move_current('right')
-            if event.key == pygame.K_RETURN:
+            if event.key in [pygame.K_RETURN, pygame.K_KP_ENTER]:
                 # App has been selected
                 call_by_index(current)
 
-    x = lirc.nextcode()
+    lirc_input = lirc.nextcode()
 
-    lirc_config_programs = {
-            "pmp": "Plex Media Player",
-            "kodi": "Kodi",
-            "torrent": "Torrent Status"
-            }
-
-    if x != [] and proc.poll() != None:
-                
-        if x[0] == "Left":
+    if lirc_input != [] and menu_proc.poll() is not None: # remote button pressed
+        ir_code = lirc_input.pop()
+        if ir_code == "Left":
             move_current('left')
-        if x[0] == "Right":
+        if ir_code == "Right":
             move_current('right')
-        if x[0] == "Return":
+        if ir_code == "Return":
             # App has been selected with arrow and OK buttons
             call_by_index(current)
 
         # Specific calls via Harmony Remote (mceusb) and lirc
         # current will not point to the right program
         # See lircrc file
-        if x[0] in lirc_config_programs.keys():
-            call_by_index(get_index(lirc_config_programs[x[0]]))
+        if ir_code in LIRCRC_APPS:
+            current = LIRCRC_APPS[ir_code]
+            call_by_index(current)
 
-        # if x[0] == "die":
+        # if ir_code == "die":
         #    break
 
-        x[0] = ""
-
-    if proc.poll() != None and cfull == False:
+    if menu_proc.poll() is not None:
         pygame.display.flip()
-        cfull = True
 
     sleep(0.1)
-
-lirc.deinit()
-sys.exit()
