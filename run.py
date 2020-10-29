@@ -180,14 +180,14 @@ focused = False
 start_watcher()
 
 while True:
-    def call_by_index(index):
+    def call_app():
         global app_proc, watcher_killed, focused
 
         draw(current)
         subprocess.call('xscreensaver-command -deactivate', shell=True)
 
-        exec_name = APPS_COMPLETE[index]['name']
-        exec_cmd = APPS_COMPLETE[index]['exec']
+        exec_name = APPS_COMPLETE[current]['name']
+        exec_cmd = APPS_COMPLETE[current]['exec']
         print('Opening %s' % exec_name)
 
         if exec_name == 'Exit':
@@ -232,7 +232,7 @@ while True:
                 move_current('right')
             if event.key in [pygame.K_RETURN, pygame.K_KP_ENTER]:
                 # App has been selected
-                call_by_index(current)
+                call_app()
 
     lirc_input = lirc.nextcode()
 
@@ -244,14 +244,14 @@ while True:
             move_current('right')
         if ir_code == "Return":
             # App has been selected with arrow and OK buttons
-            call_by_index(current)
+            call_app()
 
         # Specific calls via Harmony Remote (mceusb) and lirc
         # current will not point to the right program
         # See lircrc file
         if ir_code in LIRCRC_APPS:
             current = LIRCRC_APPS[ir_code]
-            call_by_index(current)
+            call_app()
 
         # if ir_code == "die":
         #    break
