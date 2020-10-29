@@ -8,12 +8,13 @@
 
 
 my $pid = open (IN, "xscreensaver-command -watch |");
-$SIG{TERM} = sub { kill 9, $pid; die "Caught a sigterm $!" };
+# $SIG{TERM} = sub { kill 9, $pid; die "Caught a SIGTERM: $!" };
+$SIG{TERM} = sub { kill('INT', $pid); die "$0 caught a SIGTERM" };
 
 while (<IN>) {
     if (m/^UNBLANK/) {
         # xscreensaver unblanked screen
-        kill 9, $pid;
+        kill ('INT', $pid);
         exit (0);
     }
 }

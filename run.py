@@ -156,33 +156,47 @@ def draw(highlight):
                      middleT, intvl, intvl), 10)
     pygame.display.flip()
 
+def set_focused():
+    global focused
+
+    print('Setting focus to %s' % WINDOW_NAME)
+    subprocess.call('xdotool windowfocus %s' % WINDOW_ID, shell=True)
+    focused = True
+
+def start_watcher():
+    global watch_proc, watcher_killed
+
+    watcher_name = 'xscreensaver-watcher.pl' 
+    watch_proc = subprocess.Popen(['./%s' % watcher_name])
+    watcher_killed = False
+    print('Started %s' % watcher_name)
 
 current = 0 # index of selected icon/program
 draw(current)
-menu_proc = subprocess.Popen(['sleep', '0']) # subprocess id of chosen menu item (pmp, kodi, etc)
+app_proc = subprocess.Popen(['sleep', '0']) # subprocess id of chosen menu item (pmp, kodi, etc)
 watch_proc = subprocess.Popen(['sleep', '0']) # subprocess id of xscreensaver watcher
+watcher_killed = False
+focused = False
+start_watcher()
 
 while True:
-    def get_focused():
-        subprocess.call('xdotool windowfocus %s' % WINDOW_ID, shell=True)
-        start_watcher()
-
-    def start_watcher():
-        global watch_proc
-
-        watch_proc = subprocess.Popen(['./xscreensaver-watcher.pl'])
-
     def call_by_index(index):
-        global menu_proc
+        global app_proc, watcher_killed, focused
 
         draw(current)
+        subprocess.call('xscreensaver-command -deactivate', shell=True)
 
         exec_name = APPS_COMPLETE[index]['name']
         exec_cmd = APPS_COMPLETE[index]['exec']
         print('Opening %s' % exec_name)
+
         if exec_name == 'Exit':
             exit_menu()
-        menu_proc = subprocess.Popen(exec_cmd)
+
+        watch_proc.terminate()
+        watcher_killed = True
+        focused = False
+        app_proc = subprocess.Popen(exec_cmd)
 
     def move_current(direction):
         global current
@@ -193,7 +207,6 @@ while True:
             current = min(len(APPS_COMPLETE) - 1, current + 1)
 
         draw(current)
-        subprocess.call('xscreensaver-command -deactivate', shell=True)
 
     def exit_menu():
         lirc.deinit()
@@ -201,8 +214,15 @@ while True:
         sys.exit()
 
     if watch_proc.poll() is not None:
-        # xscreensaver 'unblanked' or first trip through loop
-        get_focused()
+        # xscreensaver (xss) 'unblanked' or first trip through loop
+        # app is not running and has not 'unblanked' xss
+        if watcher_killed:
+            if app_proc.poll() is not None:
+                print('Returning from %s' % APPS_COMPLETE[current]['name'])
+                start_watcher()
+        elif not focused:
+            print('xscreensaver exited')
+            set_focused()
 
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN: # key pressed
@@ -216,7 +236,7 @@ while True:
 
     lirc_input = lirc.nextcode()
 
-    if lirc_input != [] and menu_proc.poll() is not None: # remote button pressed
+    if lirc_input != [] and app_proc.poll() is not None: # remote button pressed
         ir_code = lirc_input.pop()
         if ir_code == "Left":
             move_current('left')
@@ -236,7 +256,7 @@ while True:
         # if ir_code == "die":
         #    break
 
-    if menu_proc.poll() is not None:
+    if app_proc.poll() is not None:
         pygame.display.flip()
 
     sleep(0.1)
